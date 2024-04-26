@@ -194,7 +194,7 @@ def parse_model(d, size, ch):  # model_dict, input_channels(3)
             except:
                 pass
         
-        if m in [Conv, C3, BNeck, ETSFA, EDFA]:
+        if m in [Conv, C3, BNeck, ETSFABN, EDFA]:
             c1, c2 = ch[f], args[0]
             args = [c1, c2, *args[1:]]
         elif m is Concat:

@@ -99,17 +99,17 @@ def train(hyp, opt, device):
     pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
     for k, v in model.named_modules():
         if hasattr(v, 'bias') and isinstance(v.bias, nn.Parameter):
-            pg2.append(v.bias)  # biases
+            pg0.append(v.bias)  # biases
         if hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):
-            pg0.append(v.weight) if isinstance(v, (nn.BatchNorm2d, nn.LayerNorm)) else pg1.append(v.weight)
-        if hasattr(v, 'pos_embedding'):
-            pg0.append(v.pos_embedding)
-    
+            pg2.append(v.weight) if isinstance(v, nn.BatchNorm2d) else pg1.append(v.weight)
+        if hasattr(v, 'implicit') and isinstance(v.implicit, nn.Parameter):
+            pg2.append(v.implicit)
+        
     optimizer = optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
 
     optimizer.add_param_group({'params': pg1, 'weight_decay': hyp['weight_decay']})  # add pg1 with weight_decay
     optimizer.add_param_group({'params': pg2})
-    logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
+    logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg0), len(pg1), len(pg2)))
     del pg0, pg1, pg2
 
     lf = one_cycle(1, hyp['lrf'], epochs)  # cosine 1->hyp['lrf']

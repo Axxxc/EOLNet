@@ -1,41 +1,41 @@
 backbone:
   [[-1, 1, Conv, [16, 3, 2, None, 1, nn.ReLU()]],
    
-   [-1, 1, ETSFA, [16, 1]],
-   [-1, 1, ETSFA, [24, 2]],
-   [-1, 1, ETSFA, [24, 1]],
-   [-1, 1, ETSFA, [32, 2]],
-   [-1, 1, ETSFA, [32, 1]],
-   [-1, 1, ETSFA, [32, 1]],                        # 6 - P3
-   [-1, 1, ETSFA, [64, 2]],
-   [-1, 1, ETSFA, [64, 1]],
-   [-1, 1, ETSFA, [64, 1]],
-   [-1, 1, ETSFA, [64, 1]],
-   [-1, 1, ETSFA, [96, 1]],
-   [-1, 1, ETSFA, [96, 1]],
-   [-1, 1, ETSFA, [96, 1]],                        # 13 - P4
-   [-1, 1, ETSFA, [160, 2]],
-   [-1, 1, ETSFA, [160, 1]],
-   [-1, 1, ETSFA, [160, 1]],
-   [-1, 1, ETSFA, [320, 1]],                       # 17 - P5
+   [-1, 1, ETSFABN, [16, 1]],
+   [-1, 1, ETSFABN, [24, 2]],
+   [-1, 1, ETSFABN, [24, 1]],
+   [-1, 1, ETSFABN, [32, 2]],
+   [-1, 1, ETSFABN, [32, 1]],
+   [-1, 1, ETSFABN, [32, 1]],                        # 6 - P3
+   [-1, 1, ETSFABN, [64, 2]],
+   [-1, 1, ETSFABN, [64, 1]],
+   [-1, 1, ETSFABN, [64, 1]],
+   [-1, 1, ETSFABN, [64, 1]],
+   [-1, 1, ETSFABN, [96, 1]],
+   [-1, 1, ETSFABN, [96, 1]],
+   [-1, 1, ETSFABN, [96, 1]],                        # 13 - P4
+   [-1, 1, ETSFABN, [160, 2]],
+   [-1, 1, ETSFABN, [160, 1]],
+   [-1, 1, ETSFABN, [160, 1]],
+   [-1, 1, ETSFABN, [320, 1]],                       # 17 - P5
   ]
 
 neck:
-  [[-1, 1, Conv, [96, 1, 1, nn.ReLU()]],
+  [[-1, 1, Conv, [96, 1, 1, None, 1, nn.ReLU()]],
    [-1, 1, nn.Upsample, [None, 2, "nearest"]],
    [[-1, 13], 1, Concat, [1]], # cat backbone P4
    [-1, 1, C3, [96]], # 21
 
-   [-1, 1, Conv, [32, 1, 1, nn.ReLU()]],
+   [-1, 1, Conv, [32, 1, 1, None, 1, nn.ReLU()]],
    [-1, 1, nn.Upsample, [None, 2, "nearest"]],
    [[-1, 6], 1, Concat, [1]], # cat backbone P3
    [-1, 1, C3, [32]], # 25 (P3/8-small)
 
-   [-1, 1, Conv, [32, 3, 2, nn.ReLU()]],
+   [-1, 1, Conv, [32, 3, 2, None, 1, nn.ReLU()]],
    [[-1, 22], 1, Concat, [1]], # cat head P4
    [-1, 1, C3, [64]], # 28 (P4/16-medium)
 
-   [-1, 1, Conv, [96, 3, 2, nn.ReLU()]],
+   [-1, 1, Conv, [96, 3, 2, None, 1, nn.ReLU()]],
    [[-1, 18], 1, Concat, [1]], # cat head P5
    [-1, 1, C3, [192]], # 31 (P5/32-large)
   ]
