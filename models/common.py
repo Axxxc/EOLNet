@@ -35,6 +35,46 @@ class Conv(nn.Module):
         return self.act(self.bn(out))
 
 
+class QuantConv2d(nn.Module):
+    def __init__(self, conv: nn.Conv2d, xscale: int=30):
+        super(QuantConv2d, self).__init__()
+        self.wscale = 0
+        self.xscale = xscale
+        self.weight = nn.Parameter(conv.weight.data.clone(), conv.weight.requires_grad)
+        self.bias = nn.Parameter(conv.bias.data.clone(), conv.bias.requires_grad) if conv.bias is not None else None
+        self.stride = conv.stride
+        self.padding = conv.padding
+        self.dilation = conv.dilation
+        self.groups = conv.groups
+        self.oc = conv.out_channels
+        self.register_buffer("qweight", torch.zeros_like(self.weight, dtype=torch.int8))
+    
+    def forward(self, x):
+        xmax = max(-torch.min(x), torch.max(x)).to(torch.float32)
+        wmax = max(-torch.min(self.weight), torch.max(self.weight)).to(torch.float32)
+        xscale = 14 - math.floor(torch.log2(xmax)) if xmax >= 2 ** -126 else 0
+        wscale = 6 - math.floor(torch.log2(wmax)) if wmax >= 2 ** -126 else 0
+        self.xscale = xscale
+        
+        x = (torch.round(x.to(torch.float32) * (2 ** xscale)) / (2 ** xscale)).to(x.dtype)
+        self.weight.data = (torch.round(self.weight.to(torch.float32) * (2 ** wscale)) / (2 ** wscale)).to(self.weight.dtype)
+        out = F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+        
+        return out
+    
+    def dforward(self, x):
+        self.input_size = x.shape
+        qx = torch.round(x.to(torch.float32) * (2 ** self.xscale))
+        qx = torch.where(qx <= 32767., qx, torch.tensor(32767., dtype=torch.float32, device=qx.device).expand_as(qx))
+        qx = torch.where(qx >= -32768., qx, torch.tensor(-32768., dtype=torch.float32, device=qx.device).expand_as(qx))
+        qx = (qx / (2 ** self.xscale)).to(x.dtype)
+        
+        weight = (self.qweight.to(torch.float32) / (2 ** self.wscale)).to(x.dtype)
+        out = F.conv2d(qx, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+        
+        return out
+
+
 class BNeck(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):
         super(BNeck, self).__init__()
