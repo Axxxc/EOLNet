@@ -95,49 +95,41 @@ class Implicit(nn.Module):
         return x * self.implicit
 
 
-# class ETSFABN(nn.Module):
-#     def __init__(self, c1, c2, s) -> None:
-#         super(ETSFABN, self).__init__()
-#         c_ = c2 // 2
+class ETSFA(nn.Module):
+    def __init__(self, c1, c2, s) -> None:
+        super(ETSFA, self).__init__()
+        self.c = c1 // 2
         
-#         self.ds = nn.MaxPool2d(kernel_size=2, stride=2) if s == 2 else nn.Identity()
+        self.cv1 = Conv(c1 // 2, c2 // 2, (5,1), 1, bn=False, bias=True)
+        self.cv2 = Conv(c1 // 2, c2 // 2, (1,5), 1, bn=False, bias=True)
         
-#         self.cv1 = Conv(c1, c_, 1, 1, act=nn.ReLU())
-#         self.cv2 = Conv(c1, c_, 1, 1, act=nn.ReLU())
-#         self.cout = Conv(4*c_, c2, 1, 1, act=nn.ReLU())
+        self.bn = nn.BatchNorm2d(c2)
+        self.act = nn.ReLU6()
+        # self.im = Implicit(c2)
         
-#         self.etsfa1 = nn.Sequential(
-#             Conv(c_, c_, (3,1), 1, bn=False),
-#             Implicit(c_),
-#             Conv(c_, c_, (1,3), 1, act=nn.ReLU()))
-
-#         self.etsfa2 = nn.Sequential(
-#             Conv(c_, c_, (3,1), 1, bn=False),
-#             Implicit(c_),
-#             Conv(c_, c_, (1,3), 1, act=nn.ReLU()))
+        self.ds = nn.MaxPool2d(kernel_size=2, stride=2) if s == 2 else nn.Identity()
+        # self.r = Conv(c, c, 1, 1, act=nn.ReLU6())
     
-#     def forward(self, x):        
-#         x = self.ds(x)
+    def forward(self, x):
+        s1, s2 = self.ds(x).chunk(2, 1)
         
-#         y1 = self.cv1(x)
-#         y2 = self.cv2(x)
-#         y3 = self.etsfa1(y2)
-#         y4 = self.etsfa2(y3)
-
-#         return self.cout(torch.cat((y1, y2, y3, y4), dim=1))
+        out = torch.cat((self.cv1(s1), self.cv2(s2)), dim=1)
+        
+        return self.act(self.bn(out))
 
 
 class ETSFABN(nn.Module):
-    def __init__(self, c1, c2, s):
+    def __init__(self, c1, c2, s, expand_ratio):
         super(ETSFABN, self).__init__()
-        c_ = round(c1 * s * 2)
+        c_ = round(c1 * expand_ratio)
         self.identity = s == 1 and c1 == c2
         
-        self.conv = nn.Sequential(
-            Conv(c1, c_, (3,1), (s,1), bn=False),
-            Implicit(c_),
-            Conv(c_, c_, (1,3), (1,s), act=nn.ReLU()),
-            Conv(c_, c2, 1, 1))
+        if expand_ratio == 1:
+            self.conv = ETSFA(c1, c2, s)
+        else:
+            self.conv = nn.Sequential(
+                Conv(c1, c_, 1, 1, act=nn.ReLU6()),
+                ETSFA(c_, c2, s))
     
     def forward(self, x):
         if self.identity:

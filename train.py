@@ -104,6 +104,10 @@ def train(hyp, opt, device):
             pg2.append(v.weight) if isinstance(v, nn.BatchNorm2d) else pg1.append(v.weight)
         if hasattr(v, 'implicit') and isinstance(v.implicit, nn.Parameter):
             pg2.append(v.implicit)
+        if hasattr(v, 'pa1') and isinstance(v.pa1, nn.Parameter):
+            pg2.append(v.pa1)
+        if hasattr(v, 'pa2') and isinstance(v.pa2, nn.Parameter):
+            pg2.append(v.pa2)
         
     optimizer = optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
 
