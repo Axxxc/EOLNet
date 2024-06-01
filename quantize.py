@@ -1,11 +1,10 @@
 import argparse
 import logging
-import time
 import torch
 
 from models.yolo import attempt_load
 from models.common import *
-from utils.torch_utils import select_device, fuse_conv_and_bn
+from utils.torch_utils import fuse_conv_and_bn
 
 
 def quantize():
@@ -69,33 +68,36 @@ def qat(self):
             if type(m) is Conv and type(m.conv) is nn.Conv2d:
                 m.conv = QuantConv2d(m.conv)
         return self
-    
-    def set_max_record(self, record=False):
-        for m in self.model.modules():
-            if type(m) is Conv:
-                m.record = record
-        return self
-    
-    def clear_max_record(self):
-        for m in self.model.modules():
-            if type(m) is Conv:
-                m.xmax[0] = 0
-                m.omax[0] = 0
-            elif type(m) is QuantConv2d:
-                m.xscale = 15
-        return self
-    
-    # post training quantization
+
+
+def set_max_record(self, record=False):
+    for m in self.model.modules():
+        if type(m) is Conv:
+            m.record = record
+    return self
+
+
+def clear_max_record(self):
+    for m in self.model.modules():
+        if type(m) is Conv:
+            m.xmax[0] = 0
+            m.omax[0] = 0
+        elif type(m) is QuantConv2d:
+            m.xscale = 15
+    return self
+
+
+# post training quantization
 def quantization(self):
-        print('quantizing layers... ')
-        for m in self.model.modules():
-            if type(m) is Conv and type(m.conv) is nn.Conv2d:
-                xscale = math.floor(15 - torch.log2(m.xmax).item())
-                xscale = min(xscale, 30)
-                m.conv = QuantConv2d(m.conv, xscale)
-                m.conv.forward = m.conv.dforward
-        
-        self.weight_quantize()
+    print('quantizing layers... ')
+    for m in self.model.modules():
+        if type(m) is Conv and type(m.conv) is nn.Conv2d:
+            xscale = math.floor(15 - torch.log2(m.xmax).item())
+            xscale = min(xscale, 30)
+            m.conv = QuantConv2d(m.conv, xscale)
+            m.conv.forward = m.conv.dforward
+    
+    self.weight_quantize()
         
         #### 16bit fixed normal quantization ####
         # for m in self.model.modules():
@@ -108,8 +110,10 @@ def quantization(self):
                     # qweight = torch.where(qweight <= 32767., qweight, torch.tensor(32767., dtype=torch.float32, device=qweight.device).expand_as(qweight))
                     # qweight = torch.where(qweight >= -32768., qweight, torch.tensor(-32768., dtype=torch.float32, device=qweight.device).expand_as(qweight))
                     # m.conv.qweight = qweight.to(torch.int16)
-        
-        return self
+    
+    return self
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weight', type=str, default='', help='*.pt path')
